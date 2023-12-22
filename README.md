@@ -1,3 +1,3 @@
 # os
 
-- cargo build --target thumbv7em-none-eabihf
+Operating system that is based off [Writing an OS in Rust](https://os.phil-opp.com/).
