@@ -17,7 +17,10 @@ pub extern "C" fn _start() -> ! {
     test_main();
 
     println!("Did not crash!");
-    loop {}
+    loop {
+        use os::print;
+        print!("-");
+    }
 }
 
 /// This function is called on panic.
