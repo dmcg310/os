@@ -11,9 +11,15 @@ use os::println;
 pub extern "C" fn _start() -> ! {
     println!("Welcome to OS!");
 
+    os::init();
+
+    // trigger breakpoint exception
+    x86_64::instructions::interrupts::int3();
+
     #[cfg(test)]
     test_main();
 
+    println!("Did not crash!");
     loop {}
 }
 
