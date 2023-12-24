@@ -1,14 +1,20 @@
-#[global_allocator]
-static ALLOCATOR: Dummy = Dummy;
-
 use alloc::alloc::{GlobalAlloc, Layout};
 use core::ptr::null_mut;
+use linked_list_allocator::LockedHeap;
 use x86_64::{
     structures::paging::{
         mapper::MapToError, FrameAllocator, Mapper, Page, PageTableFlags, Size4KiB,
     },
     VirtAddr,
 };
+
+/*
+ * We can use Arc, Rc, Vec, Box, String, format!, LinkedList, VecDeque, BinaryHeap, BTreeMap,
+ * BTreeSet, in our kernel with this allocator
+ */
+
+#[global_allocator]
+static ALLOCATOR: LockedHeap = LockedHeap::empty();
 
 pub struct Dummy;
 pub const HEAP_BEGIN: usize = 0x_4444_4444_0000;
@@ -44,6 +50,10 @@ pub fn init_heap(
 
         let flags = PageTableFlags::PRESENT | PageTableFlags::WRITABLE;
         unsafe { mapper.map_to(page, frame, flags, frame_allocator)?.flush() };
+    }
+
+    unsafe {
+        ALLOCATOR.lock().init(HEAP_BEGIN, HEAP_SIZE);
     }
 
     Ok(())
