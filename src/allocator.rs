@@ -1,6 +1,6 @@
+use self::bump::BumpAllocator;
 use alloc::alloc::{GlobalAlloc, Layout};
 use core::ptr::null_mut;
-use linked_list_allocator::LockedHeap;
 use x86_64::{
     structures::paging::{
         mapper::MapToError, FrameAllocator, Mapper, Page, PageTableFlags, Size4KiB,
@@ -8,38 +8,23 @@ use x86_64::{
     VirtAddr,
 };
 
-/*
- * We can use Arc, Rc, Vec, Box, String, format!, LinkedList, VecDeque, BinaryHeap, BTreeMap,
- * BTreeSet, in our kernel with this allocator
- */
+pub mod bump;
+
+pub const HEAP_START: usize = 0x_4444_4444_0000;
+pub const HEAP_SIZE: usize = 100 * 1024; // 100 KiB
 
 #[global_allocator]
-static ALLOCATOR: LockedHeap = LockedHeap::empty();
-
-pub struct Dummy;
-pub const HEAP_BEGIN: usize = 0x_4444_4444_0000;
-pub const HEAP_SIZE: usize = 100 * 1024; // 100KiB
-
-unsafe impl GlobalAlloc for Dummy {
-    unsafe fn alloc(&self, _layout: Layout) -> *mut u8 {
-        null_mut()
-    }
-
-    unsafe fn dealloc(&self, _ptr: *mut u8, _layout: Layout) {
-        panic!("dealloc should never be called")
-    }
-}
+static ALLOCATOR: Locked<BumpAllocator> = Locked::new(BumpAllocator::new());
 
 pub fn init_heap(
     mapper: &mut impl Mapper<Size4KiB>,
     frame_allocator: &mut impl FrameAllocator<Size4KiB>,
 ) -> Result<(), MapToError<Size4KiB>> {
     let page_range = {
-        let heap_start = VirtAddr::new(HEAP_BEGIN as u64);
+        let heap_start = VirtAddr::new(HEAP_START as u64);
         let heap_end = heap_start + HEAP_SIZE - 1u64;
         let heap_start_page = Page::containing_address(heap_start);
         let heap_end_page = Page::containing_address(heap_end);
-
         Page::range_inclusive(heap_start_page, heap_end_page)
     };
 
@@ -47,14 +32,49 @@ pub fn init_heap(
         let frame = frame_allocator
             .allocate_frame()
             .ok_or(MapToError::FrameAllocationFailed)?;
-
         let flags = PageTableFlags::PRESENT | PageTableFlags::WRITABLE;
         unsafe { mapper.map_to(page, frame, flags, frame_allocator)?.flush() };
     }
 
     unsafe {
-        ALLOCATOR.lock().init(HEAP_BEGIN, HEAP_SIZE);
+        ALLOCATOR.lock().init(HEAP_START, HEAP_SIZE);
     }
 
     Ok(())
+}
+
+pub struct Dummy;
+
+unsafe impl GlobalAlloc for Dummy {
+    unsafe fn alloc(&self, _layout: Layout) -> *mut u8 {
+        null_mut()
+    }
+
+    unsafe fn dealloc(&self, _ptr: *mut u8, _layout: Layout) {
+        panic!("dealloc should be never called")
+    }
+}
+
+/// A wrapper around spin::Mutex to permit trait implementations.
+pub struct Locked<A> {
+    inner: spin::Mutex<A>,
+}
+
+impl<A> Locked<A> {
+    pub const fn new(inner: A) -> Self {
+        Locked {
+            inner: spin::Mutex::new(inner),
+        }
+    }
+
+    pub fn lock(&self) -> spin::MutexGuard<A> {
+        self.inner.lock()
+    }
+}
+
+/// Align the given address `addr` upwards to alignment `align`.
+///
+/// Requires that `align` is a power of two.
+fn align_up(addr: usize, align: usize) -> usize {
+    (addr + align - 1) & !(align - 1)
 }
