@@ -9,7 +9,7 @@ extern crate alloc;
 use alloc::{boxed::Box, rc::Rc, vec, vec::Vec};
 use bootloader::{entry_point, BootInfo};
 use core::panic::PanicInfo;
-use os::{println, task::{Task, simple_executor::SimpleExecutor, keyboard}};
+use os::{println, task::{executor::Executor, Task, simple_executor::SimpleExecutor, keyboard}};
 
 entry_point!(kernel_main);
 
@@ -51,16 +51,14 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
         Rc::strong_count(&cloned_reference)
     );
 
-    let mut executor = SimpleExecutor::new();
-    executor.spawn(Task::new(example_task()));
-    executor.spawn(Task::new(keyboard::print_keypresses()));
-    executor.run();
-
     #[cfg(test)]
     test_main();
 
-    println!("It did not crash!");
-    os::hlt_loop();
+
+    let mut executor = Executor::new();
+    executor.spawn(Task::new(example_task()));
+    executor.spawn(Task::new(keyboard::print_keypresses()));
+    executor.run();
 }
 
 async fn async_number() -> u32 {
