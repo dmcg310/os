@@ -8,7 +8,6 @@ use core::{
 
 pub mod keyboard;
 pub mod executor;
-pub mod simple_executor;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 struct TaskId(u64);

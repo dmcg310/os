@@ -9,7 +9,7 @@ extern crate alloc;
 use alloc::{boxed::Box, rc::Rc, vec, vec::Vec};
 use bootloader::{entry_point, BootInfo};
 use core::panic::PanicInfo;
-use os::{println, task::{executor::Executor, Task, simple_executor::SimpleExecutor, keyboard}};
+use os::{println, task::{executor::Executor, Task, keyboard}};
 
 entry_point!(kernel_main);
 
