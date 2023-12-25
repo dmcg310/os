@@ -6,6 +6,7 @@ use core::{
 };
 
 pub mod simple_executor;
+pub mod keyboard;
 
 pub struct Task {
     // pinned, heap-allocated, dynamically dispatched future of type ()
